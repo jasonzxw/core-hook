@@ -1,0 +1,40 @@
+{
+  "name": "core-hook",
+  "version": "1.0.0",
+  "description": "This is a slicing programming tool class based on front-end objects or functions",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jasonzxw/core-hook.git"
+  },
+  "keywords": [
+    "Frontend",
+    "Hook",
+    "Aspect"
+  ],
+  "author": "jason_zuo",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jasonzxw/core-hook/issues"
+  },
+  "homepage": "https://github.com/jasonzxw/core-hook#readme",
+  "devDependencies": {
+    "ts-lib": "^0.0.5",
+    "typescript": "^5.8.3"
+  }
+}
