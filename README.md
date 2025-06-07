@@ -1,345 +1,299 @@
-# core-hook
-This is a slicing programming tool class based on front-end objects or functions
+# CoreHook - Advanced Proxy Hooks Utility
 
-# CoreHook API 使用文档
+## Overview
+CoreHook is a powerful TypeScript utility that enables intercepting operations on objects and functions using JavaScript's Proxy API. It allows developers to inject custom logic before or after:
 
-## 目录
-- [core-hook](#core-hook)
-- [CoreHook API 使用文档](#corehook-api-使用文档)
-  - [目录](#目录)
-  - [功能概述](#功能概述)
-  - [核心概念](#核心概念)
-  - [安装与导入](#安装与导入)
-  - [API 方法](#api-方法)
-    - [registerGetHook](#registergethook)
-    - [registerSetHook](#registersethook)
-    - [registerDeleteHook](#registerdeletehook)
-    - [registerApplyHook](#registerapplyhook)
-    - [清理钩子方法](#清理钩子方法)
-  - [使用示例](#使用示例)
-    - [对象属性访问日志](#对象属性访问日志)
-    - [表单字段验证](#表单字段验证)
-    - [函数调用监控](#函数调用监控)
-    - [资源清理](#资源清理)
-  - [注意事项](#注意事项)
-  - [最佳实践](#最佳实践)
+- Property access (`get`)
+- Property assignment (`set`)
+- Property deletion (`deleteProperty`)
+- Function invocation (`apply`)
 
-## 功能概述
-`CoreHook` 是一个高级代理工具，允许开发者在对象属性访问(get)、属性设置(set)、属性删除(deleteProperty)和函数调用(apply)操作前后注入自定义逻辑。主要功能包括：
+Key features:
+- 🛡️ Memory-safe implementation using WeakMap
+- ⚡ Lightweight and performant
+- 🔍 Support for both objects and functions
+- 🧩 Modular hook registration
+- 🧹 Automatic garbage collection
+- 🔧 Full TypeScript support
 
-1. **拦截操作**：在对象操作执行前后添加钩子函数
-2. **自定义逻辑**：实现日志记录、验证、性能监控等
-3. **精细控制**：支持前置(before)和后置(after)钩子
-4. **动态管理**：提供钩子的注册、通知和清理机制
-
-## 核心概念
-- **钩子(Hook)**：在特定操作前后执行的回调函数
-- **前置钩子(Before Hook)**：在操作执行前触发的回调
-- **后置钩子(After Hook)**：在操作执行后触发的回调
-- **代理对象(Proxy)**：CoreHook返回的对象/函数代理，用于拦截操作
-
-## 安装与导入
-```typescript
-// 通过npm安装
+## Installation
+```bash
 npm install core-hook-utils
+```
 
-// 在项目中导入
+```typescript
 import { CoreHook } from 'core-hook-utils';
 ```
 
-## API 方法
+## API Reference
 
-### registerGetHook
-注册属性访问(get)操作的钩子
+### `registerGetHook()`
+Registers hooks for property access operations.
 
 ```typescript
 static registerGetHook<T extends object>(
   target: T,
-  callbackList: Array<(target: object, key: string | symbol) => void>,
+  callbackList: Array<(target: T, key: string | symbol) => void>,
   before: boolean = true
 ): T
 ```
 
-**参数：**
-| 参数名 | 类型 | 必需 | 默认值 | 说明 |
-|--------|------|------|---------|------|
-| target | object | ✓ | - | 要添加钩子的对象 |
-| callbackList | 函数数组 | ✓ | - | 钩子触发时的回调函数 |
-| before | boolean | ✗ | true | true=访问前触发，false=访问后触发 |
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| target | `object` | Yes | - | Target object to monitor |
+| callbackList | `Function[]` | Yes | - | Array of callback functions |
+| before | `boolean` | No | `true` | Trigger before operation |
 
-**返回值：**  
-代理后的对象，保留原始对象的所有属性
+**Returns:**  
+Proxy object with get hooks applied
 
 ---
 
-### registerSetHook
-注册属性设置(set)操作的钩子
+### `registerSetHook()`
+Registers hooks for property assignment operations.
 
 ```typescript
 static registerSetHook<T extends object>(
   target: T,
-  callbackList: Array<(target: object, key: string | symbol, value: any) => void>,
+  callbackList: Array<(target: T, key: string | symbol, value: any) => void>,
   before: boolean = true
 ): T
 ```
 
-**参数：**
-| 参数名 | 类型 | 必需 | 默认值 | 说明 |
-|--------|------|------|---------|------|
-| target | object | ✓ | - | 要添加钩子的对象 |
-| callbackList | 函数数组 | ✓ | - | 钩子触发时的回调函数 |
-| before | boolean | ✗ | true | true=设置前触发，false=设置后触发 |
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| target | `object` | Yes | - | Target object to monitor |
+| callbackList | `Function[]` | Yes | - | Array of callback functions |
+| before | `boolean` | No | `true` | Trigger before operation |
 
-**回调参数：**  
-`(target, key, value)` - value为要设置的新值
-
-**返回值：**  
-代理后的对象
+**Returns:**  
+Proxy object with set hooks applied
 
 ---
 
-### registerDeleteHook
-注册属性删除(deleteProperty)操作的钩子
+### `registerDeleteHook()`
+Registers hooks for property deletion operations.
 
 ```typescript
 static registerDeleteHook<T extends object>(
   target: T,
-  callbackList: Array<(target: object, key: string | symbol) => void>,
+  callbackList: Array<(target: T, key: string | symbol) => void>,
   before: boolean = true
 ): T
 ```
 
-**参数：**
-| 参数名 | 类型 | 必需 | 默认值 | 说明 |
-|--------|------|------|---------|------|
-| target | object | ✓ | - | 要添加钩子的对象 |
-| callbackList | 函数数组 | ✓ | - | 钩子触发时的回调函数 |
-| before | boolean | ✗ | true | true=删除前触发，false=删除后触发 |
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| target | `object` | Yes | - | Target object to monitor |
+| callbackList | `Function[]` | Yes | - | Array of callback functions |
+| before | `boolean` | No | `true` | Trigger before operation |
 
-**返回值：**  
-代理后的对象
+**Returns:**  
+Proxy object with delete hooks applied
 
 ---
 
-### registerApplyHook
-注册函数调用(apply)操作的钩子
+### `registerApplyHook()`
+Registers hooks for function invocation operations.
 
 ```typescript
 static registerApplyHook<T extends Function>(
   target: T,
-  callbackList: Array<(target: Function, thisArg: any, args: any[]) => void>,
+  callbackList: Array<(target: T, thisArg: any, args: any[]) => void>,
   before: boolean = true
 ): T
 ```
 
-**参数：**
-| 参数名 | 类型 | 必需 | 默认值 | 说明 |
-|--------|------|------|---------|------|
-| target | Function | ✓ | - | 要添加钩子的函数 |
-| callbackList | 函数数组 | ✓ | - | 钩子触发时的回调函数 |
-| before | boolean | ✗ | true | true=调用前触发，false=调用后触发 |
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| target | `Function` | Yes | - | Target function to monitor |
+| callbackList | `Function[]` | Yes | - | Array of callback functions |
+| before | `boolean` | No | `true` | Trigger before operation |
 
-**回调参数：**  
-`(target, thisArg, args)`  
-- thisArg: 函数调用的this值
-- args: 函数调用参数数组
-
-**返回值：**  
-代理后的函数
+**Returns:**  
+Proxy function with apply hooks applied
 
 ---
 
-### 清理钩子方法
-| 方法名 | 描述 |
-|--------|------|
-| `clearGetBeforeHook(target)` | 清除对象的所有前置get钩子 |
-| `clearGetAfterHook(target)` | 清除对象的所有后置get钩子 |
-| `clearSetBeforeHook(target)` | 清除对象的所有前置set钩子 |
-| `clearSetAfterHook(target)` | 清除对象的所有后置set钩子 |
-| `clearDeleteBeforeHook(target)` | 清除对象的所有前置delete钩子 |
-| `clearDeleteAfterHook(target)` | 清除对象的所有后置delete钩子 |
-| `clearApplyBeforeHook(target)` | 清除函数的所有前置apply钩子 |
-| `clearApplyAfterHook(target)` | 清除函数的所有后置apply钩子 |
-| `clearTargetHooks(target)` | 清除目标的所有钩子 |
+### `clearTargetHooks()`
+Removes all hooks associated with a target.
 
-## 使用示例
-
-### 对象属性访问日志
 ```typescript
-const config = { 
-  apiKey: '12345-ABCDE', 
-  endpoint: 'https://api.example.com' 
-};
-
-// 添加前置get钩子（访问属性前记录）
-const monitoredConfig = CoreHook.registerGetHook(config, [
-  (obj, key) => console.log(`[访问] 配置属性: ${String(key)}`)
-], true);
-
-console.log(monitoredConfig.apiKey);
-// 输出: [访问] 配置属性: apiKey
-//       12345-ABCDE
+static clearTargetHooks(target: object | Function): void
 ```
 
-### 表单字段验证
-```typescript
-const userForm = { 
-  name: '', 
-  email: '', 
-  age: 0 
-};
+**Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| target | `object | Function` | Target to clear hooks from |
 
-// 添加前置set钩子（设置前验证）
-const validatedForm = CoreHook.registerSetHook(userForm, [
-  (obj, key, value) => {
-    if (key === 'email' && !value.includes('@')) {
-      throw new Error('无效的邮箱格式');
-    }
-    if (key === 'age' && (value < 18 || value > 120)) {
-      throw new Error('年龄必须在18-120之间');
+---
+
+### `getTargetHooks()`
+Retrieves all hooks registered for a target.
+
+```typescript
+static getTargetHooks(
+  target: object | Function
+): Map<string, Function[]> | undefined
+```
+
+**Returns:**  
+Map of hook types and their callbacks, or `undefined` if no hooks exist
+
+## Usage Examples
+
+### 1. Property Access Logging
+```typescript
+const user = { name: 'Alice', age: 30 };
+
+const monitoredUser = CoreHook.registerGetHook(user, [
+  (target, key) => console.log(`Accessed property: ${String(key)}`)
+], true);
+
+console.log(monitoredUser.name);
+// Output: Accessed property: name
+//         Alice
+```
+
+### 2. Input Validation
+```typescript
+const config = { apiKey: '' };
+
+const validatedConfig = CoreHook.registerSetHook(config, [
+  (target, key, value) => {
+    if (key === 'apiKey' && value.length < 10) {
+      throw new Error('API key must be at least 10 characters');
     }
   }
 ], true);
 
-validatedForm.email = 'user@example.com'; // 成功
-validatedForm.age = 25; // 成功
-
-try {
-  validatedForm.email = 'invalid-email'; // 抛出错误
-} catch (e) {
-  console.error(e.message); // 无效的邮箱格式
-}
+validatedConfig.apiKey = '1234567890';  // Success
+validatedConfig.apiKey = 'short';       // Throws error
 ```
 
-### 函数调用监控
+### 3. Function Performance Monitoring
 ```typescript
-function processData(data: string): string {
-  console.log('处理数据...');
+function processData(data: string) {
   return data.toUpperCase();
 }
 
-// 添加前置钩子（记录开始时间）
-let startTime: number;
-const timedProcess = CoreHook.registerApplyHook(processData, [
-  (fn, thisArg, args) => {
-    console.log(`调用函数: ${fn.name}，参数: ${args}`);
-    startTime = performance.now();
-  }
-], true);
-
-// 添加后置钩子（记录执行时间）
-CoreHook.registerApplyHook(timedProcess, [
-  (fn, thisArg, args) => {
-    const duration = performance.now() - startTime;
-    console.log(`函数执行完成，耗时: ${duration.toFixed(2)}ms`);
-  }
+const timedFunction = CoreHook.registerApplyHook(processData, [
+  (target, thisArg, args) => console.time('processData'),
+  (target, thisArg, args) => console.timeEnd('processData')
 ], false);
 
-const result = timedProcess('hello world');
-// 输出: 调用函数: processData，参数: hello world
-//       处理数据...
-//       函数执行完成，耗时: 2.45ms
-console.log(result); // HELLO WORLD
+timedFunction('test');
+// Output: processData: 0.102ms
 ```
 
-### 资源清理
+### 4. Automatic Resource Cleanup
 ```typescript
-const resource = {
-  connection: null,
-  data: []
-};
+const resource = { connection: null };
 
-// 添加delete钩子（删除属性前清理资源）
 const managedResource = CoreHook.registerDeleteHook(resource, [
-  (obj, key) => {
-    if (key === 'connection' && obj.connection) {
-      console.log('关闭数据库连接...');
-      // 实际清理代码
-      obj.connection.close();
+  (target, key) => {
+    if (key === 'connection' && target.connection) {
+      console.log('Closing connection...');
+      target.connection.close();
     }
   }
 ], true);
 
-// 使用资源...
-managedResource.connection = { close: () => console.log('连接已关闭') };
-
-// 删除属性触发钩子
-delete managedResource.connection; 
-// 输出: 关闭数据库连接...
-//       连接已关闭
-
-// 清理所有钩子
-CoreHook.clearTargetHooks(managedResource);
+managedResource.connection = { close: () => console.log('Closed') };
+delete managedResource.connection;
+// Output: Closing connection...
+//         Closed
 ```
 
-## 注意事项
-1. **标识限制**：
-   - 对象钩子使用`JSON.stringify()`作为标识
-   - 函数钩子使用函数名作为标识
-   - 匿名函数可能导致冲突
+## Best Practices
 
-2. **性能考虑**：
-   - 代理操作引入额外开销
-   - 避免在高频操作中使用
-   - 保持钩子函数轻量级
+### 1. Lifecycle Management
+```typescript
+class SecureService {
+  private data: any = {};
+  private dataProxy: any;
 
-3. **错误处理**：
-   - 钩子内的错误会传播到主操作
-   - 使用try/catch处理关键操作
+  constructor() {
+    this.dataProxy = CoreHook.registerSetHook(this.data, [
+      this.validateData.bind(this)
+    ], true);
+  }
 
-4. **序列化限制**：
-   - 包含循环引用的对象无法被正确序列化
-   - Symbol属性会被转换为字符串
+  private validateData(target: any, key: string, value: any) {
+    // Validation logic
+  }
 
-5. **多层代理**：
-   - 对同一目标多次添加钩子会创建多层代理
-   - 可能导致意外行为
+  cleanup() {
+    CoreHook.clearTargetHooks(this.data);
+  }
+}
+```
 
-## 最佳实践
-1. **监控与调试**：
-   ```typescript
-   // 添加后置钩子记录操作
-   CoreHook.registerSetHook(obj, [
-     (t, k, v) => console.log(`属性 ${k} 已更新: ${v}`)
-   ], false);
+### 2. Performance Monitoring
+```typescript
+function withPerfMonitoring<T extends Function>(fn: T): T {
+  return CoreHook.registerApplyHook(fn, [
+    (target, thisArg, args) => console.time(target.name),
+    (target, thisArg, args) => console.timeEnd(target.name)
+  ], false);
+}
+
+const monitoredFn = withPerfMonitoring(myFunction);
+```
+
+### 3. Debugging Utilities
+```typescript
+function debugHooks(target: object | Function) {
+  const hooks = CoreHook.getTargetHooks(target);
+  if (hooks) {
+    console.log(`Target has ${hooks.size} hook types:`);
+    for (const [type, callbacks] of hooks) {
+      console.log(`- ${type}: ${callbacks.length} callbacks`);
+    }
+  }
+}
+```
+
+### 4. Asynchronous Operations
+```typescript
+CoreHook.registerApplyHook(asyncFunction, [
+  async (target, thisArg, args) => {
+    await preProcess();
+    console.log('Pre-processing complete');
+  }
+], true);
+```
+
+## Important Notes
+
+1. **Proxy Chains**  
+   Multiple registrations on the same target create proxy chains. Use `getRawTarget()` to access the original object.
+
+2. **Symbol Properties**  
+   Symbol keys are preserved in their original form during hook notifications.
+
+3. **Error Handling**  
+   Hook errors are caught and logged but don't interrupt main execution:
+   ```
+   Hook execution error: [Error message]
    ```
 
-2. **数据验证**：
-   ```typescript
-   // 前置钩子验证输入
-   CoreHook.registerSetHook(formData, [
-     (t, k, v) => validateField(k, v)
-   ], true);
-   ```
+4. **Memory Management**  
+   Unused targets are automatically garbage collected via WeakMap.
 
-3. **资源管理**：
-   ```typescript
-   // 删除属性前释放资源
-   CoreHook.registerDeleteHook(resource, [
-     (t, k) => cleanupResource(k)
-   ], true);
-   ```
+5. **Function Identifiers**  
+   Anonymous functions are assigned unique identifiers using Symbols.
 
-4. **性能优化**：
-   ```typescript
-   // 使用后及时清理钩子
-   function tempMonitoring(obj) {
-     const proxy = CoreHook.registerGetHook(obj, [...]);
-     // 监控操作...
-     CoreHook.clearTargetHooks(proxy);
-   }
-   ```
+6. **Performance Considerations**  
+   For high-frequency operations, minimize hook complexity and:
+   - Use `before: false` for non-critical operations
+   - Avoid deep object inspection in hooks
+   - Use `clearTargetHooks()` when hooks are no longer needed
 
-5. **错误边界**：
-   ```typescript
-   // 钩子内添加错误处理
-   CoreHook.registerApplyHook(fn, [
-     (target, thisArg, args) => {
-       try {
-         // 敏感操作
-       } catch (e) {
-         console.error('钩子执行失败', e);
-       }
-     }
-   ]);
-   ```
+7. **Type Safety**  
+   The API maintains strict TypeScript typing throughout operations.

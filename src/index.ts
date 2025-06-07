@@ -1,273 +1,296 @@
 const GET_SUFFIX = '_get';
 const SET_SUFFIX = '_set';
 const DELETE_SUFFIX = '_delete';
-const APPLY_SUFFIX = '_apply'; 
+const APPLY_SUFFIX = '_apply';
 
 /**
- * CoreHook is a utility class that provides hooks for object and function operations.
+ * CoreHook is an advanced proxy utility for adding hooks before/after object operations and function calls
+ * Features: Intercept property access (get), property setting (set), property deletion (delete), and function invocation (apply)
  */
-class CoreHook{
-    /**
-     * A map to store hooks for different targets and types.
-     */
-    private static hooks: Map<string, Array<Function>> = new Map();
+class CoreHook {
+    // Use WeakMap to store hooks to prevent memory leaks
+    private static hooks = new WeakMap<object | Function, Map<string, Function[]>>();
+    
+    // Map proxies to their original targets
+    private static proxyToTarget = new WeakMap<object | Function, object | Function>();
 
     /**
-     * Registers a get hook for an object
-     * @param target The target object to register the hook on.
-     * @param callbackList An array of callback functions to be called when the hook is triggered.
-     * @param before If true, the hook is called before the operation; if false, after.
-     * @returns A proxy of the target with the get hook applied.
+     * Register hooks for property access (get) operations
+     * @param target Target object
+     * @param callbackList Array of callback functions
+     * @param before Whether to trigger before operation (default: true)
+     * @returns Proxy object
      */
-    static registerGetHook<T extends object>(target: T,callbackList:Array<(target: object , key: string | symbol)=>void> , before: boolean = true): T {
-        if (!target || typeof target !== 'object' && typeof target !== 'function') {
-            throw new TypeError('Target must be an object.');
-        }
-        if (!Array.isArray(callbackList) || callbackList.length === 0) {
-            throw new TypeError('Callback list must be a non-empty array.');
-        }
-        let suffixName = before ? GET_SUFFIX + String(true) : GET_SUFFIX + String(false);
-        CoreHook.saveHooks(target, callbackList, suffixName);
-        return new Proxy(target, {
+    static registerGetHook<T extends object>(
+        target: T,
+        callbackList: Array<(target: T, key: string | symbol) => void>,
+        before: boolean = true
+    ): T {
+        this.validateTarget(target, 'object');
+        this.validateCallbacks(callbackList);
+        
+        const suffixName = `${GET_SUFFIX}${before}`;
+        this.saveHooks(target, callbackList, suffixName);
+        
+        return this.createProxy(target, {
             get(obj, prop) {
-                if(before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString());
+                if (before) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop);
                 }
-                let result = obj[prop as keyof T];
-                if(!before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString());
+                
+                const result = Reflect.get(obj, prop, obj);
+                
+                if (!before) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop);
                 }
+                
                 return result;
             }
         });
     }
 
     /**
-     * @description Registers a set hook for an object.
-     * @param target {object} The target object to register the hook on.
-     * @param callbackList {Array<(target: object , key: string | symbol, value: any)>} An array of callback functions to be called when the hook is triggered.
-     * @param before {boolean} If true, the hook is called before the operation; if false, after.
-     * @returns 
+     * Register hooks for property setting (set) operations
+     * @param target Target object
+     * @param callbackList Array of callback functions
+     * @param before Whether to trigger before operation (default: true)
+     * @returns Proxy object
      */
-    static registerSetHook<T extends object>(target: T, callbackList: Array<(target: object , key: string | symbol, value: any)=>void>, before: boolean = true): T {
-        if (!target || typeof target !== 'object' && typeof target !== 'function') {
-            throw new TypeError('Target must be an object.');
-        }
-        if (!Array.isArray(callbackList) || callbackList.length === 0) {
-            throw new TypeError('Callback list must be a non-empty array.');
-        }
-        let suffixName = before ? SET_SUFFIX + String(true) : SET_SUFFIX + String(false);
-        CoreHook.saveHooks(target, callbackList, suffixName);
-        return new Proxy(target, {
+    static registerSetHook<T extends object>(
+        target: T,
+        callbackList: Array<(target: T, key: string | symbol, value: any) => void>,
+        before: boolean = true
+    ): T {
+        this.validateTarget(target, 'object');
+        this.validateCallbacks(callbackList);
+        
+        const suffixName = `${SET_SUFFIX}${before}`;
+        this.saveHooks(target, callbackList, suffixName);
+        
+        return this.createProxy(target, {
             set(obj, prop, value) {
-                if(before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString(), value);
+                if (before) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop, value);
                 }
-                obj[prop as keyof T] = value;
-                if(!before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString(), value);
+                
+                const success = Reflect.set(obj, prop, value, obj);
+                
+                if (!before && success) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop, value);
                 }
-                return true;
+                
+                return success;
             }
         });
     }
 
     /**
-     * @description Registers a delete hook for an object.
-     * @param target {object} The target object to register the delete hook on.
-     * @param callbackList {Array<(target: object , key: string | symbol)>} An array of callback functions to be called when the hook is triggered.
-     * @param before {boolean} If true, the hook is called before the operation; if false, after.
-     * @returns 
+     * Register hooks for property deletion (delete) operations
+     * @param target Target object
+     * @param callbackList Array of callback functions
+     * @param before Whether to trigger before operation (default: true)
+     * @returns Proxy object
      */
-    static registerDeleteHook<T extends object>(target: T, callbackList: Array<(target: object , key: string | symbol)=>void>, before: boolean = true): T {
-        if (!target || typeof target !== 'object' && typeof target !== 'function') {
-            throw new TypeError('Target must be an object.');
-        }
-        if (!Array.isArray(callbackList) || callbackList.length === 0) {
-            throw new TypeError('Callback list must be a non-empty array.');
-        }
-        let suffixName = before ? DELETE_SUFFIX + String(true) : DELETE_SUFFIX + String(false);
-        CoreHook.saveHooks(target, callbackList, suffixName);
-        return new Proxy(target, {
+    static registerDeleteHook<T extends object>(
+        target: T,
+        callbackList: Array<(target: T, key: string | symbol) => void>,
+        before: boolean = true
+    ): T {
+        this.validateTarget(target, 'object');
+        this.validateCallbacks(callbackList);
+        
+        const suffixName = `${DELETE_SUFFIX}${before}`;
+        this.saveHooks(target, callbackList, suffixName);
+        
+        return this.createProxy(target, {
             deleteProperty(obj, prop) {
-                if(before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString());
+                if (before) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop);
                 }
-                delete obj[prop as keyof T];
-                if(!before){
-                    CoreHook.notifyHooks(target, suffixName, target, prop.toString());
+                
+                const success = Reflect.deleteProperty(obj, prop);
+                
+                if (!before && success) {
+                    CoreHook.notifyHooks(target, suffixName, obj, prop);
                 }
-                return true;
+                
+                return success;
             }
         });
     }
 
     /**
-     * @description Registers an apply hook for a function.
-     * @param target {Function} The target function to register the apply hook on.
-     * @param callbackList {{Array<(target: Function, thisArg: any, args: any[])=>void>} An array of callback functions to be called when the hook is triggered.}
-     * @param before {boolean} If true, the hook is called before the operation; if false, after.
-     * @returns 
+     * Register hooks for function invocation (apply) operations
+     * @param target Target function
+     * @param callbackList Array of callback functions
+     * @param before Whether to trigger before operation (default: true)
+     * @returns Proxy function
      */
-    static registerApplyHook<T extends Function>(target: T, callbackList: Array<(target: Function, thisArg: any, args: any[])=>void> , before:boolean = true): T {
-        if (!target || typeof target !== 'function') {
-            throw new TypeError('Target must be a function.');
-        }
-        if (!Array.isArray(callbackList) || callbackList.length === 0) {
-            throw new TypeError('Callback list must be a non-empty array.');
-        }
-        let suffixName = before ? APPLY_SUFFIX + String(true) : APPLY_SUFFIX + String(false);
-        CoreHook.saveHooks(target, callbackList, suffixName);
-        return new Proxy(target, {
-            apply(target, thisArg, args) {
-                if(before){
-                    CoreHook.notifyHooks(target, suffixName, target, thisArg, args);
+    static registerApplyHook<T extends Function>(
+        target: T,
+        callbackList: Array<(target: T, thisArg: any, args: any[]) => void>,
+        before: boolean = true
+    ): T {
+        this.validateTarget(target, 'function');
+        this.validateCallbacks(callbackList);
+        
+        const suffixName = `${APPLY_SUFFIX}${before}`;
+        this.saveHooks(target, callbackList, suffixName);
+        
+        return this.createProxy(target, {
+            apply(fn, thisArg, args) {
+                if (before) {
+                    CoreHook.notifyHooks(target, suffixName, fn, thisArg, args);
                 }
-                let result = Reflect.apply(target, thisArg, args);
-                if(!before){
-                    CoreHook.notifyHooks(target, suffixName, target, thisArg, args);
+                
+                const result = Reflect.apply(fn, thisArg, args);
+                
+                if (!before) {
+                    CoreHook.notifyHooks(target, suffixName, fn, thisArg, args);
                 }
+                
                 return result;
             }
-        });
+        }) as T;
     }
+
     /**
-     * @description Saves hooks for a target object or function.
-     * @param target {object | Function} The target object or function to save hooks for.
-     * @param callback {Array<Function>} An array of callback functions to be called when the hook is triggered.
-     * @param type {string} The type of hook to save (e.g., '_get', '_set', '_delete', '_apply').
+     * Save hooks to storage
+     * @param target Target object or function
+     * @param callbacks Array of callback functions
+     * @param type Hook type identifier
      */
-    static saveHooks(target: object | Function, callback: Array<Function> , type: string): void {
-        let name = this.getHookName(target, type);
-        if (!this.hooks.has(name)) {
-            this.hooks.set(name, []);
+    private static saveHooks(target: object | Function, callbacks: Function[], type: string): void {
+        let typeMap = this.hooks.get(target);
+        
+        if (!typeMap) {
+            typeMap = new Map<string, Function[]>();
+            this.hooks.set(target, typeMap);
         }
-        this.hooks.get(name)?.push(...callback);
-    }
-
-    /**
-     * @description Notifies hooks for a target object or function.
-     * @param target {object | Function} The target object or function to notify hooks for.
-     * @param type {   string} The type of hook to notify (e.g., '_get', '_set', '_delete', '_apply').
-     * @param args {any[]} The arguments to pass to the hook callbacks.
-     */
-    static notifyHooks(target: object | Function, type: string , ...args: any[]): void {
-        const name = this.getHookName(target, type);
-        if (this.hooks.has(name)) {
-            this.hooks.get(name)?.forEach(callback => callback(...args));
+        
+        if (!typeMap.has(type)) {
+            typeMap.set(type, []);
         }
+        
+        typeMap.get(type)!.push(...callbacks);
     }
 
     /**
-     * @description Clears all before hooks for a target object
+     * Trigger hook notifications
+     * @param target Target object or function
+     * @param type Hook type identifier
+     * @param args Arguments for callback functions
      */
-    static clearGetBeforeHook(target: object): void {
-        const name = JSON.stringify(target) + GET_SUFFIX + String(true);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
-        } 
-    }
-
-    /**
-     * @description Clears all after hooks for a target object
-     * @param target {object} The target object to clear the after get hook for.
-     */
-    static clearGetAfterHook(target: object): void {
-        const name = JSON.stringify(target) + GET_SUFFIX + String(false);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
-        }
-    }
-
-    /**
-     * @description Clears all before set hooks for a target object.
-     * @param target {object} The target object to clear the before set hook for.
-     */
-    static clearSetBeforeHook(target: object): void {
-        const name = JSON.stringify(target) + SET_SUFFIX + String(true);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
+    private static notifyHooks(target: object | Function, type: string, ...args: any[]): void {
+        try {
+            const typeMap = this.hooks.get(target);
+            if (!typeMap) return;
+            
+            const hooks = typeMap.get(type);
+            if (!hooks) return;
+            
+            for (const callback of hooks) {
+                try {
+                    callback(...args);
+                } catch (error) {
+                    console.error(`Hook execution error: ${error}`);
+                }
+            }
+        } catch (error) {
+            console.error(`Hook notification error: ${error}`);
         }
     }
 
     /**
-     * @description Clears all after set hooks for a target object.
-     * @param target {object} The target object to clear the after set hook for.
+     * Create proxy wrapper
+     * @param target Target object or function
+     * @param handler Proxy handler configuration
+     * @returns Proxy instance
      */
-    static clearSetAfterHook(target: object): void {
-        const name = JSON.stringify(target) + SET_SUFFIX + String(false);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
+    private static createProxy<T extends object | Function>(
+        target: T,
+        handler: ProxyHandler<T>
+    ): T {
+        // Use raw target if already a proxy
+        const rawTarget = this.getRawTarget(target);
+        
+        // Create new proxy
+        const proxy = new Proxy(rawTarget, handler);
+        
+        // Store proxy-to-target mapping
+        this.proxyToTarget.set(proxy, rawTarget);
+        
+        return proxy;
+    }
+
+    /**
+     * Get original target (unwraps proxies)
+     * @param target Potential proxy object
+     * @returns Original target object
+     */
+    private static getRawTarget<T>(target: T): T {
+        let current = target;
+        while (this.proxyToTarget.has(current as object | Function)) {
+            current = this.proxyToTarget.get(current as object | Function) as T;
+        }
+        return current;
+    }
+
+    /**
+     * Validate target type
+     * @param target Target to validate
+     * @param expectedType Expected type ('object' or 'function')
+     */
+    private static validateTarget(target: any, expectedType: 'object' | 'function'): void {
+        if (!target) {
+            throw new TypeError('Target cannot be null or undefined');
+        }
+        
+        if (expectedType === 'object' && (typeof target !== 'object' && typeof target !== 'function')) {
+            throw new TypeError('Target must be an object');
+        }
+        
+        if (expectedType === 'function' && typeof target !== 'function') {
+            throw new TypeError('Target must be a function');
         }
     }
 
     /**
-     * @description Clears all before delete hooks for a target object.
-     * @param target {object} The target object to clear the before delete hook for.
+     * Validate callback list
+     * @param callbackList Callbacks to validate
      */
-    static clearDeleteBeforeHook(target: object): void {
-        const name = JSON.stringify(target) + DELETE_SUFFIX + String(true);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
+    private static validateCallbacks(callbackList: any): void {
+        if (!Array.isArray(callbackList)) {
+            throw new TypeError('Callback list must be an array');
+        }
+        
+        if (callbackList.length === 0) {
+            throw new TypeError('Callback list cannot be empty');
+        }
+        
+        for (const cb of callbackList) {
+            if (typeof cb !== 'function') {
+                throw new TypeError('Callback list must contain only functions');
+            }
         }
     }
 
     /**
-     * @description Clears all after delete hooks for a target object.
-     * @param target {object} The target object to clear the after delete hook for.
-     */
-    static clearDeleteAfterHook(target: object): void {
-        const name = JSON.stringify(target) + DELETE_SUFFIX + String(false);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
-        }
-    }
-
-    /**
-     * @description Clears all before apply hooks for a target function.
-     * @param target {Function} The target function to clear the before apply hook for.
-     */
-    static clearApplyBeforeHook(target: Function): void {
-        const name = target.name + APPLY_SUFFIX + String(true);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
-        }
-    }
-
-    /**
-     * @description Clears all after apply hooks for a target function.
-     * @param target {Function} The target function to clear the after apply hook for.
-     */
-    static clearApplyAfterHook(target: Function): void {
-        const name = target.name + APPLY_SUFFIX + String(false);
-        if (this.hooks.has(name)) {
-            this.hooks.delete(name);
-        }
-    }
-
-    /**
-     * @description Clears all hooks for a target object or function.
-     * @param target {object | Function} The target object or function to clear all hooks for.
+     * Clear all hooks for a target
+     * @param target Target object or function
      */
     static clearTargetHooks(target: object | Function): void {
-        if( typeof target === 'function') {
-            this.clearApplyBeforeHook(target);
-            this.clearApplyAfterHook(target);
-        }else{
-            this.clearGetBeforeHook(target);
-            this.clearGetAfterHook(target);
-            this.clearSetBeforeHook(target);
-            this.clearSetAfterHook(target);
-            this.clearDeleteBeforeHook(target);
-            this.clearDeleteAfterHook(target);
-        }
+        const rawTarget = this.getRawTarget(target);
+        this.hooks.delete(rawTarget);
     }
 
-    static getHookName(target: object | Function, type: string): string {
-        if (typeof target === 'function') {
-            return target.name + type;
-        } else {
-            return JSON.stringify(target) + type;
-        }
+    /**
+     * Get all hooks for a target
+     * @param target Target object or function
+     * @returns Map of hook types and their callbacks
+     */
+    static getTargetHooks(target: object | Function): Map<string, Function[]> | undefined {
+        const rawTarget = this.getRawTarget(target);
+        return this.hooks.get(rawTarget);
     }
 }
