@@ -1,5 +1,5 @@
 {
-  "name": "core-hook",
+  "name": "corehook-utility",
   "version": "1.0.0",
   "description": "This is a slicing programming tool class based on front-end objects or functions",
   "type": "module",
